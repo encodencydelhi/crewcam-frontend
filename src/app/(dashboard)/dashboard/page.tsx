@@ -22,8 +22,8 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import api from '@/lib/axios';
-import EmployeeDashboard from './employee/page';
-import RecruiterDashboard from './hr-dashboard/page';
+import EmployeeDashboard from './(workspace)/employee/page';
+import RecruiterDashboard from './(hiring)/hr-dashboard/page';
 import { useAuthStore } from '@/store/authStore';
 
 interface DashboardConfig { category: string; effectivePermissions: string[]; widgets: string[]; }
@@ -1576,7 +1576,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="mx-auto max-w-[1600px] space-y-2 pb-4 px-2 sm:px-3">
+    <main className="w-full space-y-2 pb-4 px-2 sm:px-3">
 
       {/* Banner — commented out, replaced by WelcomeHeader (see comment block above) */}
       {/* <HeroSlider /> */}

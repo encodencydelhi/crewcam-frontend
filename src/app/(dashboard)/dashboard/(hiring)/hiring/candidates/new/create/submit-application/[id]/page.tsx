@@ -1,0 +1,604 @@
+"use client";
+import { useParams, useRouter } from 'next/navigation';
+import api from '@/lib/axios';
+import { toast } from 'react-hot-toast';
+
+import React from 'react';
+import {
+  Check,
+  CheckCircle,
+  Mail,
+  AlertCircle,
+  FileText,
+  Download,
+  MessageSquare,
+  Send,
+  ChevronRight,
+  Sparkles,
+  ClipboardList,
+  Gift,
+  UserCheck,
+  Headphones,
+  Clock,
+  MapPin,
+  IndianRupee,
+  Hash,
+  Calendar,
+  Plus,
+  LayoutDashboard,
+  Briefcase
+} from 'lucide-react';
+import { CandidateInfo, Note, PortalView } from '../types';
+
+const defaultCandidate: CandidateInfo = {
+  fullName: "Amit Kumar Verma",
+  email: "amit.verma@email.com",
+  mobile: "+91 98765 43210",
+  currentLocation: "Noida, Uttar Pradesh",
+  preferredLocation: "Noida, Delhi NCR",
+  linkedin: "https://linkedin.com/in/amitverma",
+  appliedFor: "Sales Manager",
+  department: "Sales & Marketing",
+  employmentType: "Full Time",
+  totalExperience: "7",
+  relevantExperience: "7",
+  currentCompany: "ABC Pvt. Ltd.",
+  currentCTC: "8.50 LPA",
+  expectedCTC: "12.00 LPA",
+  noticePeriod: "30 Days",
+  availableFrom: "15 June 2026",
+  relocation: "Yes, I am open to relocate",
+  willingToTravel: "Yes",
+  highestQualification: "MBA - Marketing",
+  university: "Amity University, Noida",
+  yearOfPassing: "2017",
+  cgpa: "7.8 CGPA"
+};
+
+const defaultNotes: Note[] = [
+  {
+    id: "note-1",
+    text: "Review AI extracted details and verified background check. Looks solid for the Sales & Marketing department.",
+    timestamp: "15 June 2026 | 11:32 AM"
+  }
+];
+
+// 8-step application journey (matches full stepper in the reference design)
+type StepStatus = "completed" | "current" | "pending";
+interface JourneyStep {
+  label: string;
+  status: StepStatus;
+}
+
+const journeySteps: JourneyStep[] = [
+  { label: "Upload CV", status: "completed" },
+  { label: "Review & Edit", status: "completed" },
+  { label: "Submit Application", status: "current" },
+  { label: "AI Screening", status: "pending" },
+  { label: "HOD Review", status: "pending" },
+  { label: "Interview", status: "pending" },
+  { label: "Offer", status: "pending" },
+  { label: "Onboarding", status: "pending" }
+];
+
+export default function SubmittedPage() {
+  // Local State
+  const [candidate, setCandidate] = React.useState<CandidateInfo>(defaultCandidate);
+  const [notes, setNotes] = React.useState<Note[]>(defaultNotes);
+  const [newNoteText, setNewNoteText] = React.useState<string>("");
+  const [showNoteInput, setShowNoteInput] = React.useState<boolean>(false);
+
+  const params = useParams() as { id: string };
+  const candidateId = params?.id;
+  const router = useRouter();
+
+  React.useEffect(() => {
+    if (candidateId) {
+      const fetchCandidate = async () => {
+        try {
+          let cId = candidateId;
+          // If it's a slug, find the candidate first
+          if (!/^[0-9a-fA-F]{24}$/.test(candidateId)) {
+            const res = await api.get(`/hiring/candidates?limit=1000`);
+            const candidates = res.data?.data || res.data || [];
+            const match = candidates.find((c: any) => {
+              const nameSlug = `${c.firstName || ''} ${c.lastName || ''}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+              return nameSlug === candidateId;
+            });
+            if (match) cId = match._id;
+            else throw new Error("Candidate not found");
+          }
+
+          const res = await api.get(`/hiring/candidates/${cId}`);
+          const data = res.data;
+          const appDetails = data.applicationDetails || {};
+
+          setCandidate({
+            fullName: data.firstName + (data.lastName ? ' ' + data.lastName : ''),
+            email: data.email || '',
+            mobile: data.phone || '',
+            currentLocation: appDetails.currentLocation || '',
+            preferredLocation: appDetails.preferredLocation || '',
+            linkedin: appDetails.linkedin || '',
+            appliedFor: data.jobRole || '',
+            department: data.departmentId?.name || data.departmentId || '',
+            employmentType: appDetails.employmentType || 'Full Time',
+            totalExperience: appDetails.totalExperience || '',
+            relevantExperience: appDetails.relevantExperience || '',
+            currentCompany: appDetails.currentCompany || '',
+            currentCTC: appDetails.currentCTC || '',
+            expectedCTC: appDetails.expectedCTC || '',
+            noticePeriod: appDetails.noticePeriod || '',
+            availableFrom: appDetails.availableFrom || '',
+            relocation: appDetails.relocation || '',
+            willingToTravel: appDetails.willingToTravel || '',
+            highestQualification: appDetails.highestQualification || '',
+            university: appDetails.university || '',
+            yearOfPassing: appDetails.yearOfPassing || '',
+            cgpa: appDetails.cgpa || '',
+            manpowerRequestId: data.manpowerRequestId || '',
+            skills: appDetails.skills || [],
+            experiences: appDetails.experiences || [],
+            education: appDetails.education || [],
+            status: data.status || 'Applied',
+            candidateCode: data.candidateCode || 'APP-PENDING',
+            profileImageUrl: data.profileImageUrl || ''
+          });
+        } catch (err) {
+          console.error(err);
+          toast.error('Failed to load candidate details');
+        }
+      };
+      fetchCandidate();
+    }
+  }, [candidateId]);
+
+  // Add a Note (interactive)
+  const handleAddNote = () => {
+    if (!newNoteText.trim()) return;
+    const newNote: Note = {
+      id: `note-${Date.now()}`,
+      text: newNoteText,
+      timestamp: "07 July 2026 | 03:07 PM"
+    };
+    setNotes([newNote, ...notes]);
+    setNewNoteText("");
+  };
+
+  const handleDownloadCV = () => {
+    const link = document.createElement('a');
+    link.href = "https://drive.google.com/uc?export=download&id=1v9E-G1x-oau8y8te_QeluAIW7z5NHBpN";
+    link.download = 'CV.pdf';
+    link.click();
+  };
+
+  const getActiveStepIndex = (status: string) => {
+    if (status === 'Applied') return 0;
+    if (status === 'Screening') return 1;
+    if (status === 'Interviewing') return 2;
+    if (status === 'Offered') return 3;
+    if (status === 'Hired') return 4;
+    return -1;
+  };
+
+  const activeStepIdx = candidate?.status ? getActiveStepIndex(candidate.status) : 0;
+
+  const pipelineSteps = [
+    { title: "AI Screening", delay: "1-2 Days", desc: "Our AI will analyze your CV and match it with the job requirements.", icon: Sparkles, active: activeStepIdx === 0, completed: activeStepIdx > 0, href: `/dashboard/hiring/candidates/new/create/ai-screening-application-evaluation/${candidateId}` },
+    { title: "HOD Review", delay: "2-3 Days", desc: "The hiring manager will review your profile and AI screening report.", icon: ClipboardList, active: activeStepIdx === 1, completed: activeStepIdx > 1, href: `/dashboard/hiring/candidates/new/create/evaluation/${candidateId}` },
+    { title: "Interview", delay: "3-5 Days", desc: "If shortlisted, our team will contact you for interview scheduling.", icon: MessageSquare, active: activeStepIdx === 2, completed: activeStepIdx > 2, href: `/dashboard/hiring/candidates/new/create/interview-process/${candidateId}` },
+    { title: "Offer", delay: "As per process", desc: "Selected candidates will receive an offer based on the discussion.", icon: Gift, active: activeStepIdx === 3, completed: activeStepIdx > 3, href: '/dashboard/offers' },
+    { title: "Onboarding", delay: "After Offer", desc: "Welcome aboard! We'll help you through the joining process.", icon: UserCheck, active: activeStepIdx === 4, completed: activeStepIdx > 4, href: '/dashboard/onboarding' }
+  ];
+
+  const summaryFields = [
+    { icon: Hash, label: "Application ID", value: (candidate as any).candidateCode || "APP-PENDING" },
+    { icon: Calendar, label: "Applied On", value: "15 June 2026, 11:32 AM" },
+    { icon: IndianRupee, label: "Expected CTC", value: `₹ ${candidate.expectedCTC}` },
+    { icon: Clock, label: "Notice Period", value: candidate.noticePeriod },
+    { icon: MapPin, label: "Current Location", value: candidate.currentLocation }
+  ];
+
+  return (
+    <div className="w-full min-h-screen lg:h-screen lg:min-h-[650px] overflow-y-auto lg:overflow-hidden flex flex-col font-sans text-slate-900 select-none" id="submitted-page-root">
+      <header className="min-h-[70px] lg:h-[9%] lg:min-h-[56px] border-b border-slate-100 px-3 lg:px-4 py-2 lg:py-0 flex flex-col md:flex-row md:items-center items-start justify-between gap-2 shrink-0">
+        <div>
+          <h1 className="font-display font-bold text-base sm:text-lg text-indigo-950 leading-tight">
+            Application Submitted Successfully!
+          </h1>
+          <p className="text-xs text-slate-600 mt-1">
+            Your application has been submitted for the position of{" "}
+            <span className="font-bold text-slate-900">{candidate.appliedFor}</span>
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button
+            onClick={() => router.push("/dashboard/hiring/candidates")}
+            className="flex-1 sm:flex-none justify-center px-3 py-2 sm:py-1.5 text-xs border border-slate-300 text-slate-800 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 transition-colors whitespace-nowrap"
+          >
+            <LayoutDashboard className="w-3.5 h-3.5" />
+            <span className="hidden xs:inline sm:inline">Go to Dashboard</span>
+          </button>
+          <button
+            // onClick={() => router.push(`/dashboard/hiring/candidates/new/create/ai-screening-application-evaluation/${candidateId}`)}
+            onClick={() => router.push(`/dashboard/hiring/candidates/new/create/ai-screening-application-evaluation/${candidateId}`)}
+            className="flex-1 sm:flex-none justify-center px-3 py-2 sm:py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-bold flex items-center gap-1.5 transition-colors whitespace-nowrap"
+          >
+            <Briefcase className="w-3.5 h-3.5" />
+            <span>AI Screening</span>
+          </button>
+        </div>
+      </header>
+      <div className="h-[1px] bg-zinc-200 w-full mb-2 shrink-0"></div>
+      {/* =========================================================================
+          2. FULL 8-STEP JOURNEY STEPPER
+          ========================================================================= */}
+      <section className="min-h-[46px] lg:h-[7%] bg-white border-b border-slate-100 px-3 lg:px-4 py-1.5 lg:py-0 flex items-center pt-1">
+        <div className="w-full min-w-max lg:min-w-0 flex items-center justify-between gap-1 lg:gap-0 overflow-visible">
+          {journeySteps.map((step, idx) => (
+            <React.Fragment key={step.label}>
+              <div className="flex flex-col items-center gap-1 min-w-[56px] lg:min-w-[64px]">
+                <span
+                  className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] border-2 ${step.status === "completed"
+                    ? "bg-white text-indigo-600 border-indigo-600"
+                    : step.status === "current"
+                      ? "bg-indigo-600 text-white border-indigo-600"
+                      : "bg-white text-slate-400 border-slate-300"
+                    }`}
+                >
+                  {step.status === "completed" ? <Check className="w-3 h-3" strokeWidth={3} /> : idx + 1}
+                </span>
+                <span
+                  className={`text-[9px] font-medium text-center leading-tight whitespace-nowrap ${step.status === "pending" ? "text-slate-400" : "text-slate-800"
+                    } ${step.status === "current" ? "font-bold text-indigo-950" : ""}`}
+                >
+                  {step.label}
+                </span>
+              </div>
+              {idx < journeySteps.length - 1 && (
+                <div
+                  className={`flex-1 min-w-[16px] h-[2px] mb-4 ${step.status === "completed" ? "bg-indigo-600" : "bg-slate-200"
+                    }`}
+                />
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+      </section>
+
+      {/* =========================================================================
+          3. MAIN CONTAINER
+          ========================================================================= */}
+      <div className="flex-1 lg:h-[84%] overflow-visible lg:overflow-hidden flex flex-col bg-white gap-2 p-3 lg:p-4">
+        <div
+          className="w-full h-auto lg:h-full flex flex-col lg:flex-row gap-4 overflow-visible lg:overflow-hidden"
+          id="submitted-step-container"
+        >
+          {/* Left Column: Success Details, Timeline & Docs (68% width) */}
+          <div className="w-full lg:w-[68%] h-auto lg:h-full flex flex-col gap-3 overflow-visible lg:overflow-y-auto lg:pr-1" id="submitted-left-column">
+
+            {/* 1. Main Welcome Congrats Card */}
+            <div className="bg-emerald-50/70 border border-emerald-200 rounded-lg p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-xs" id="congrats-card">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center border border-emerald-300 text-emerald-700 shrink-0">
+                  <CheckCircle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="font-display font-bold text-sm text-emerald-950">
+                    Thank you, {candidate.fullName}!
+                  </h2>
+                  <p className="text-[11px] text-slate-800 leading-relaxed mt-0.5">
+                    Your application for <span className="font-bold text-indigo-950">{candidate.appliedFor}</span> has been submitted successfully to the <span className="font-bold text-indigo-950">{candidate.department}</span> department.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <span className="text-[10px] font-mono bg-white text-emerald-800 px-2 py-0.5 rounded border border-emerald-300 font-bold">
+                      Application ID: {(candidate as any).candidateCode || 'APP-PENDING'}
+                    </span>
+                    <span className="text-[10px] text-emerald-800 font-bold bg-white px-2 py-0.5 rounded border border-emerald-300">
+                      Status: Awaiting AI Screening
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="hidden md:block bg-white p-2 rounded-lg border border-emerald-100 shadow-xs shrink-0">
+                <Mail className="w-8 h-8 text-emerald-600 animate-bounce" />
+              </div>
+            </div>
+
+            {/* 2. "What Happens Next?" Pipeline Milestones */}
+            <div className="space-y-1" id="pipeline-milestones">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-bold text-indigo-950">What Happens Next?</h3>
+                  <p className="text-[9px] text-slate-600 mt-0.5">We follow a systematic process to review every application fairly.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-1.5">
+                {pipelineSteps.map((step, idx) => {
+                  const Icon = step.icon;
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        if (step.href && step.active) {
+                          window.open(step.href, '_blank');
+                        }
+                      }}
+                      className={`p-2 rounded-lg border text-left transition-all flex flex-col ${
+                        step.active ? 'bg-indigo-50 border-indigo-300 shadow-xs cursor-pointer hover:scale-[1.02]' :
+                        step.completed ? 'bg-emerald-50/30 border-emerald-200 opacity-60 cursor-not-allowed' : 
+                        'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed'
+                      }`}
+                    >
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center mb-1.5 ${step.completed ? 'bg-emerald-100 text-emerald-700' :
+                          step.active ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                        {step.completed ? <Check className="w-3.5 h-3.5" strokeWidth={3} /> : <Icon className="w-3.5 h-3.5" />}
+                      </div>
+                      <span className={`text-[10px] font-bold ${step.completed ? 'text-emerald-800' :
+                          step.active ? 'text-indigo-950' : 'text-slate-800'
+                        }`}>
+                        {step.title}
+                      </span>
+                      <p className="text-[9px] text-slate-700 leading-tight mt-1 flex-1">
+                        {step.completed ? 'Completed' : step.desc}
+                      </p>
+                      <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded-full mt-1.5 self-start ${step.completed ? 'bg-emerald-100 text-emerald-800' :
+                          step.active ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-800'
+                        }`}>
+                        {step.completed ? 'Done' : step.delay}
+                      </span>
+                      {step.active && (
+                        <span className="text-[8px] text-indigo-800 font-bold block mt-1.5 text-right animate-pulse">
+                          Click to View Action →
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 3. Info Banner regarding SMS / Email Updates */}
+            <div className="bg-indigo-50 p-1.5 rounded-lg border border-indigo-100 flex items-start sm:items-center gap-2 text-[10px] text-indigo-950" id="sms-info-banner">
+              <AlertCircle className="w-4 h-4 text-indigo-700 flex-shrink-0" />
+              <span>
+                You will receive instant automated updates at <span className="font-bold underline break-all">{candidate.email}</span> and SMS on <span className="font-bold">{candidate.mobile}</span> as the candidate moves through the screening timeline.
+              </span>
+            </div>
+
+            {/* 4. Documents Submitted (full width) */}
+            <div className="bg-white rounded-lg border border-slate-200 p-2 shadow-sm" id="documents-box">
+              <h4 className="text-xs font-bold text-indigo-950 flex items-center gap-1 mb-1.5 pb-0.5 border-b border-slate-100">
+                <FileText className="w-3.5 h-3.5 text-indigo-700" />
+                Documents Submitted
+              </h4>
+
+              <div className="flex flex-col sm:flex-row sm:items-center items-start justify-between gap-2 bg-slate-50 p-1.5 rounded border border-slate-200">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="bg-rose-100 text-rose-700 font-bold px-1.5 py-1 text-[9px] rounded uppercase shrink-0">
+                    PDF
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold text-slate-900 block truncate max-w-[220px]">
+                      {candidate.fullName.replace(/\s+/g, '_')}_Resume.pdf
+                    </span>
+                    <span className="text-[8px] text-slate-600 block">
+                      245 KB • Uploaded on 15 June 2026 | 11:32 AM
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleDownloadCV}
+                  className="p-1.5 sm:p-1 hover:bg-indigo-50 border border-slate-200 rounded text-indigo-700 hover:text-indigo-900 flex items-center gap-0.5 transition-colors text-[9px] font-bold shrink-0"
+                >
+                  <Download className="w-3 h-3" />
+                  <span>Download</span>
+                </button>
+              </div>
+            </div>
+
+            {/* 5. Bottom Grid: Notes & Need Help (matches reference layout) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2" id="submitted-bottom-grid">
+
+              {/* Left Box: Notes */}
+              <div className="bg-white rounded-lg border border-slate-200 p-2 flex flex-col shadow-sm" id="recruiter-notes-box">
+                <div className="flex items-center justify-between mb-1 pb-0.5 border-b border-slate-100">
+                  <h4 className="text-xs font-bold text-indigo-950 flex items-center gap-1">
+                    <MessageSquare className="w-3.5 h-3.5 text-indigo-700" />
+                    Notes ({notes.length})
+                  </h4>
+                  <button
+                    onClick={() => setShowNoteInput(!showNoteInput)}
+                    className="px-2 py-1 sm:py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded text-[9px] flex items-center gap-1 transition-colors"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Add Note
+                  </button>
+                </div>
+
+                {!showNoteInput && notes.length === 0 && (
+                  <p className="text-[9px] text-slate-600 leading-normal mt-1">
+                    You can add any additional information for the recruiter.
+                  </p>
+                )}
+
+                {showNoteInput && (
+                  <div className="flex gap-1.5 my-1.5">
+                    <input
+                      type="text"
+                      placeholder="Type notes for recruiters..."
+                      value={newNoteText}
+                      onChange={(e) => setNewNoteText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleAddNote();
+                      }}
+                      autoFocus
+                      className="flex-1 min-w-0 px-2 py-1.5 sm:py-1 text-xs bg-slate-50 border border-slate-200 rounded focus:bg-white focus:border-indigo-500 focus:outline-none text-slate-900"
+                    />
+                    <button
+                      onClick={handleAddNote}
+                      className="px-2.5 py-1.5 sm:py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded text-xs flex items-center gap-1 transition-colors shrink-0"
+                    >
+                      <Send className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+
+                <div className="space-y-1 max-h-[120px] sm:max-h-[85px] overflow-y-auto pr-1 mt-1">
+                  {notes.map(note => (
+                    <div key={note.id} className="p-1 bg-slate-50 rounded border border-slate-100 text-[9px] leading-tight text-slate-800">
+                      <p className="text-slate-900 font-medium">{note.text}</p>
+                      <span className="text-[8px] text-slate-600 font-bold block mt-0.5 text-right">
+                        {note.timestamp}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right Box: Need Help */}
+              <div className="bg-indigo-50/50 rounded-lg border border-indigo-100 p-2 flex flex-col justify-between shadow-sm" id="need-help-box">
+                <div className="flex items-start gap-2">
+                  <div className="w-7 h-7 rounded-full bg-white border border-indigo-200 flex items-center justify-center text-indigo-700 flex-shrink-0">
+                    <Headphones className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-indigo-950 text-xs block">Need Help?</span>
+                    <p className="text-[9px] text-slate-800 leading-normal mt-0.5">
+                      If you have any queries regarding your application, feel free to reach out to our HR team.
+                    </p>
+                    <button
+                      onClick={() => alert("Connecting to HR Talent Team...\nHotline: hr-support@portal.com")}
+                      className="px-2 py-1.5 sm:py-1 bg-white border border-indigo-300 text-indigo-700 rounded text-[10px] font-bold hover:bg-indigo-100 transition-colors mt-2 self-start"
+                    >
+                      Contact HR Team
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+          {/* Right Column: Application Summary Card & Vertical Activity Logs (32% width) */}
+          <div className="w-full lg:w-[32%] h-auto lg:h-full flex flex-col gap-2 overflow-visible lg:overflow-hidden" id="submitted-right-column">
+
+            {/* 1. Candidate Application Summary Badge */}
+            <div className="bg-white rounded-lg border border-slate-200 p-4 flex flex-col items-center text-center shadow-sm shrink-0" id="submitted-summary-badge">
+              <h4 className="text-xs font-bold text-indigo-950 border-b border-slate-100 pb-2 mb-3 w-full text-left">Application Summary</h4>
+              <div className="flex flex-col items-center gap-2 w-full">
+                <div className="relative shrink-0">
+                  <div className="w-16 h-16 rounded-full border-2 border-indigo-600 overflow-hidden bg-indigo-50">
+                    <img
+                      src={(candidate as any).profileImageUrl || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80"}
+                      alt={candidate.fullName || "Candidate"}
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                  <span className="absolute bottom-1 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full"></span>
+                </div>
+
+                <div className="flex flex-col items-center mt-1">
+                  <h3 className="font-display font-bold text-[14px] text-indigo-950 leading-tight">
+                    {candidate.fullName}
+                  </h3>
+                  <p className="text-[11px] text-slate-600 font-medium mt-0.5">
+                    {candidate.appliedFor}
+                  </p>
+                  <span className="bg-emerald-50 text-emerald-700 text-[9px] font-bold px-2 py-0.5 rounded border border-emerald-200 mt-2 inline-block">
+                    Application Submitted
+                  </span>
+                </div>
+              </div>
+              {/* Summary fields Table with icons */}
+              <div className="w-full mt-2 space-y-1 text-left text-[10px] text-slate-800 border-t border-slate-100 pt-1.5">
+                {summaryFields.map((field) => {
+                  const Icon = field.icon;
+                  return (
+                    <div key={field.label} className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1 font-medium text-slate-600 shrink-0">
+                        <Icon className="w-3 h-3 text-indigo-600" />
+                        {field.label}
+                      </span>
+                      <span className="font-bold text-slate-900 truncate max-w-[140px] sm:max-w-[120px]">{field.value}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 2. Interactive Application Activity Vertical Timeline */}
+            <div className="lg:flex-1 bg-white rounded-lg border border-slate-200 p-2 flex flex-col shadow-sm overflow-visible lg:overflow-hidden min-h-[280px] lg:min-h-0" id="activity-logs-box">
+              <span className="text-xs font-bold text-indigo-950 border-b border-slate-100 pb-1 mb-1.5 block">
+                Application Activity Tracker
+              </span>
+
+              <div className="flex-1 overflow-visible lg:overflow-y-auto pr-0.5 space-y-3.5 max-h-[420px] lg:max-h-none">
+                {[
+                  { title: "Application Submitted", date: "15 June 2026, 11:32 AM", desc: "Form details saved and credentials locked.", route: null },
+                  { title: "Awaiting AI Screening", date: "15 June 2026, 11:32 AM", desc: "CV matches queued for algorithmic screening.", route: `/dashboard/hiring/candidates/new/create/ai-screening-application-evaluation/${candidateId}` },
+                  { title: "HOD Review", date: "Pending", desc: "Department heads review candidate scorecard.", route: null },
+                  { title: "Interview", date: "Pending", desc: "Interaction panel scheduling with engineer leads.", route: null },
+                  { title: "Offer", date: "Pending", desc: "Drafting contract and salary package allocations.", route: null },
+                  { title: "Onboarding", date: "Pending", desc: "Provisioning systems and welcoming candidate.", route: null }
+                ].map((act, i) => {
+                  // If we are at index i, it is 'current'
+                  // If we are past index i, it is 'checked'
+                  // activeStepIdx comes from: Applied=0, Screening=1, Interviewing=2, Offered=3, Hired=4
+                  const isChecked = activeStepIdx > i;
+                  const isCurrent = activeStepIdx === i;
+                  const isActive = activeStepIdx >= i;
+
+                  return (
+                    <div key={i} className="flex gap-2 text-[10px]">
+                      <div className="flex flex-col items-center shrink-0">
+                        <span className={`w-4 h-4 rounded-full flex items-center justify-center font-bold text-[8px] border ${isChecked
+                          ? 'bg-emerald-100 border-emerald-400 text-emerald-800'
+                          : isCurrent
+                            ? 'bg-indigo-600 border-indigo-600 text-white animate-pulse'
+                            : 'bg-slate-100 border-slate-300 text-slate-500'
+                          }`}>
+                          {isChecked ? "✓" : isCurrent ? <Clock className="w-2.5 h-2.5" /> : i + 1}
+                        </span>
+                        {i < 5 && <div className={`w-[2px] flex-1 min-h-[14px] mt-1 ${isActive ? 'bg-indigo-400' : 'bg-slate-200'}`} />}
+                      </div>
+                      <div className="flex-1 min-w-0 pb-1">
+                        <div className="flex flex-wrap items-center justify-between gap-x-2">
+                          <span className={`font-bold ${isActive ? 'text-indigo-950' : 'text-slate-800'}`}>
+                            {act.title}
+                          </span>
+                          <span className="text-[7.5px] text-slate-600 font-semibold font-mono whitespace-nowrap">
+                            {isChecked || isCurrent ? act.date : "Pending"}
+                          </span>
+                        </div>
+                        <p className="text-[8.5px] text-slate-700 leading-tight mt-0.5">
+                          {act.desc}
+                        </p>
+                        {isCurrent && act.route && (
+                          <button
+                            onClick={() => router.push(act.route!)}
+                            className="text-[8px] text-indigo-700 hover:text-indigo-950 font-bold underline mt-1 block text-left"
+                          >
+                            Explore Active Screening Report →
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

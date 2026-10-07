@@ -2,6 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
+import api from '@/lib/axios';
 import {
   Briefcase, Users, User, CalendarCheck, FileCheck2, UserCheck, Clock3,
   ClipboardList, UserPlus, ChevronRight, Bot,
@@ -48,7 +50,7 @@ const ACTIONS = [
   { label: 'Create Job Requisition', href: '/dashboard/hiring/manpower/new', icon: ClipboardList, accent: 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400' },
   { label: 'Post New Job', href: '/dashboard/hiring/manpower', icon: Send, accent: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' },
   { label: 'Add Candidate', href: '/dashboard/hiring/candidates/new', icon: UserPlus, accent: 'bg-violet-50 text-indigo-700 dark:bg-violet-500/10 dark:text-violet-400' },
-  { label: 'Schedule Interview', href: '/dashboard/hiring/interviews/list', icon: CalendarCheck, accent: 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400' },
+  { label: 'Schedule Interview', href: '/dashboard/hiring/interviews', icon: CalendarCheck, accent: 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400' },
   { label: 'Release Offer', href: '/dashboard/hiring/loi', icon: FileCheck2, accent: 'bg-pink-50 text-pink-600 dark:bg-pink-500/10 dark:text-pink-400' },
   { label: 'Start Onboarding', href: '/dashboard/hiring/joining-confirmation', icon: Rocket, accent: 'bg-teal-50 text-teal-600 dark:bg-teal-500/10 dark:text-teal-400' },
 ];
@@ -56,7 +58,7 @@ const ACTIONS = [
 const QUICK_LINKS = [
   { label: 'All Candidates', href: '/dashboard/hiring/candidates', icon: Users },
   { label: 'Job Openings', href: '/dashboard/hiring/manpower', icon: Briefcase },
-  { label: 'Interview Panel', href: '/dashboard/hiring/interviews/list', icon: CalendarCheck },
+  { label: 'Interview Panel', href: '/dashboard/hiring/interviews', icon: CalendarCheck },
   { label: 'Offer Letters', href: '/dashboard/hiring/loi', icon: FileCheck2 },
   { label: 'Other Letters', href: '/dashboard/hiring/doc-checklist', icon: FileText },
   { label: 'Recruitment Reports', href: '/dashboard/coming-soon', icon: FileBarChart2 },
@@ -211,10 +213,10 @@ function Header() {
 // KPI strip
 // ─────────────────────────────────────────────────────────────────────────
 
-function StatsStrip() {
+function StatsStrip({ kpiData = KPIS }: { kpiData?: any[] }) {
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-      {KPIS.map((s) => {
+      {(kpiData || []).map((s) => {
         const TrendIcon = s.up ? ArrowUpRight : ArrowDownRight;
         const trendColor = s.up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400';
         return (
@@ -242,7 +244,7 @@ function StatsStrip() {
 // Pipeline funnel + table / Hiring overview donut
 // ─────────────────────────────────────────────────────────────────────────
 
-function RecruitmentPipeline() {
+function RecruitmentPipeline({ pipelineData = PIPELINE_STAGES }: { pipelineData?: any[] }) {
   // Funnel bar widths are a fixed, evenly-tapered staircase (not scaled to
   // the raw candidate counts) so the shape always reads as a clean funnel,
   // matching the mockup — the real numbers live in the table on the right.
@@ -251,7 +253,7 @@ function RecruitmentPipeline() {
     <Card title="Recruitment Pipeline">
       <div className="flex gap-3">
         <div className="flex w-[34%] shrink-0 flex-col items-center justify-start gap-0.5">
-          {PIPELINE_STAGES.map((s, i) => (
+          {(pipelineData || []).map((s, i) => (
             <div
               key={s.name}
               className="flex h-[26px] items-center justify-center rounded"
@@ -271,8 +273,8 @@ function RecruitmentPipeline() {
               </tr>
             </thead>
             <tbody>
-              {PIPELINE_STAGES.map((s, i) => {
-                const conversion = i === 0 ? 100 : (s.value / PIPELINE_STAGES[i - 1].value) * 100;
+              {(pipelineData || []).map((s, i) => {
+                const conversion = i === 0 ? 100 : (s.value / pipelineData[i - 1]?.value || 1) * 100;
                 return (
                   <tr key={s.name} className="border-t border-zinc-50 dark:border-zinc-800">
                     <td className="py-1 pr-1 text-[10.5px] font-medium text-zinc-800 dark:text-zinc-100">
@@ -292,7 +294,9 @@ function RecruitmentPipeline() {
   );
 }
 
-function HiringOverview() {
+function HiringOverview({ overview = [] }: { overview?: any[] }) {
+  const TOTAL_OPEN_POSITIONS = overview.reduce((sum, d) => sum + d.value, 0);
+
   return (
     <Card
       title="Hiring Overview"
@@ -306,8 +310,8 @@ function HiringOverview() {
         <div className="relative shrink-0" style={{ width: 140, height: 140 }}>
           <ResponsiveContainer>
             <PieChart>
-              <Pie data={HIRING_OVERVIEW} dataKey="value" nameKey="name" innerRadius={40} outerRadius={62} paddingAngle={2} stroke="none">
-                {HIRING_OVERVIEW.map((e) => <Cell key={e.name} fill={e.color} />)}
+              <Pie data={overview.length > 0 ? overview : [{ name: 'None', value: 1, color: '#f4f4f5' }]} dataKey="value" nameKey="name" innerRadius={40} outerRadius={62} paddingAngle={2} stroke="none">
+                {(overview.length > 0 ? overview : [{ name: 'None', value: 1, color: '#f4f4f5' }]).map((e) => <Cell key={e.name} fill={e.color} />)}
               </Pie>
             </PieChart>
           </ResponsiveContainer>
@@ -319,13 +323,15 @@ function HiringOverview() {
           </div>
         </div>
         <div className="min-w-0 flex-1 space-y-1.5">
-          {HIRING_OVERVIEW.map((s) => (
+          {overview.length > 0 ? overview.map((s) => (
             <div key={s.name} className="flex items-center gap-1.5 text-[10.5px] text-zinc-500 dark:text-zinc-400">
               <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
               <span className="truncate">{s.name}</span>
               <span className="ml-auto shrink-0 font-semibold text-zinc-700 dark:text-zinc-200">{s.value} ({s.pct}%)</span>
             </div>
-          ))}
+          )) : (
+            <div className="text-[10.5px] text-zinc-400 italic">No data available</div>
+          )}
         </div>
       </div>
     </Card>
@@ -373,16 +379,18 @@ function QuickLinks() {
   );
 }
 
-function AIInsights() {
+function AIInsights({ insights = [] }: { insights?: string[] }) {
   return (
     <Card title="AI Recruitment Insights">
       <div className="space-y-2">
-        {AI_INSIGHTS.map((text, i) => (
+        {insights.length > 0 ? insights.map((text, i) => (
           <div key={i} className="flex items-start gap-2">
             <Bot size={13} className="mt-0.5 shrink-0 text-violet-500" />
             <p className="text-[10.5px] font-medium leading-tight text-zinc-700 dark:text-zinc-200">{text}</p>
           </div>
-        ))}
+        )) : (
+          <div className="text-[10.5px] text-zinc-400 italic">No insights available at the moment.</div>
+        )}
       </div>
       <Link href="/dashboard/coming-soon" className="mt-2 block border-t border-zinc-50 dark:border-zinc-800 pt-1.5 text-[10px] font-semibold text-indigo-700 dark:text-violet-400">
         View All Insights
@@ -395,9 +403,9 @@ function PendingApprovals() {
   return (
     <Card title="Pending Approvals" action={<ViewAllLink href="/dashboard/hiring/manpower" />}>
       <div className="space-y-1">
-        {PENDING_APPROVALS.map((r) => (
-          <div key={r.title} className="flex items-center justify-between gap-2 rounded-lg bg-amber-50/60 dark:bg-amber-500/10 px-2 py-0.5">
-            <p className="truncate text-[10.5px] font-semibold text-zinc-800 dark:text-zinc-100">{r.title}</p>
+        {PENDING_APPROVALS.map((r: any) => (
+          <div key={(r.jobTitle || r.title)} className="flex items-center justify-between gap-2 rounded-lg bg-amber-50/60 dark:bg-amber-500/10 px-2 py-0.5">
+            <p className="truncate text-[10.5px] font-semibold text-zinc-800 dark:text-zinc-100">{(r.jobTitle || r.title)}</p>
             <span className="shrink-0 whitespace-nowrap rounded-full bg-amber-100 dark:bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700 dark:text-amber-400">{r.status}</span>
           </div>
         ))}
@@ -410,9 +418,9 @@ function PendingApprovals() {
 // Tables / lists
 // ─────────────────────────────────────────────────────────────────────────
 
-function TodaysInterviews() {
+function TodaysInterviews({ interviews = [] }: { interviews?: any[] }) {
   return (
-    <Card title="Today's Interviews" action={<ViewAllLink href="/dashboard/meetings" label="View Calendar" />}>
+    <Card className="min-h-[180px]" title="Today's Interviews" action={<ViewAllLink href="/dashboard/meetings" label="View Calendar" />}>
       <table className="w-full border-collapse">
         <thead>
           <tr className="text-left text-[9.5px] text-zinc-400">
@@ -424,64 +432,74 @@ function TodaysInterviews() {
           </tr>
         </thead>
         <tbody>
-          {TODAYS_INTERVIEWS.map((iv) => (
-            <tr key={iv.time + iv.candidate} className="border-t border-zinc-50 dark:border-zinc-800">
-              <td className="py-1 pr-1 text-[10px] text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{iv.time}</td>
-              <td className="truncate py-1 pr-1 text-[10.5px] font-medium text-zinc-800 dark:text-zinc-100">{iv.candidate}</td>
-              <td className="truncate py-1 pr-1 text-[10.5px] text-zinc-600 dark:text-zinc-300">{iv.position}</td>
-              <td className="truncate py-1 pr-1 text-[10.5px] text-zinc-600 dark:text-zinc-300">{iv.interviewer}</td>
+          {interviews.length > 0 ? interviews.map((iv) => (
+            <tr key={iv._id || iv.time || new Date(iv.interviewDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + (iv.candidateId?.firstName ? `${iv.candidateId.firstName} ${iv.candidateId.lastName}` : iv.candidate)} className="border-t border-zinc-50 dark:border-zinc-800">
+              <td className="py-1 pr-1 text-[10px] text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{iv.time || new Date(iv.interviewDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+              <td className="truncate py-1 pr-1 text-[10.5px] font-medium text-zinc-800 dark:text-zinc-100">{(iv.candidateId?.firstName ? `${iv.candidateId.firstName} ${iv.candidateId.lastName}` : iv.candidate)}</td>
+              <td className="truncate py-1 pr-1 text-[10.5px] text-zinc-600 dark:text-zinc-300">{iv.position || 'Candidate'}</td>
+              <td className="truncate py-1 pr-1 text-[10.5px] text-zinc-600 dark:text-zinc-300">{(iv.interviewerId?.firstName ? `${iv.interviewerId.firstName} ${iv.interviewerId.lastName}` : iv.interviewer)}</td>
               <td className="py-1">
                 <span className={`inline-block whitespace-nowrap rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${INTERVIEW_STATUS_STYLE[iv.status] || ''}`}>{iv.status}</span>
               </td>
             </tr>
-          ))}
+          )) : (
+            <tr>
+              <td colSpan={5} className="py-10 text-[10.5px] text-center text-zinc-400 italic border-t border-zinc-50 dark:border-zinc-800">
+                No interviews scheduled for today
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </Card>
   );
 }
 
-function HotCandidates() {
+function HotCandidates({ candidates = [] }: { candidates?: any[] }) {
   return (
-    <Card title="Hot Candidates" action={<ViewAllLink href="/dashboard/hiring/candidates" />}>
+    <Card className="min-h-[180px]" title="Hot Candidates" action={<ViewAllLink href="/dashboard/hiring/candidates" />}>
       <div className="space-y-2">
-        {HOT_CANDIDATES.map((c) => (
-          <div key={c.name} className="flex items-center gap-2">
-            <Avatar name={c.name} />
+        {candidates.length > 0 ? candidates.map((c) => (
+          <div key={(c.firstName ? `${c.firstName} ${c.lastName}` : c.name)} className="flex items-center gap-2">
+            <Avatar name={(c.firstName ? `${c.firstName} ${c.lastName}` : c.name)} />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[10.5px] font-semibold text-zinc-800 dark:text-zinc-100">{c.name}</p>
-              <p className="truncate text-[9px] text-zinc-400">{c.role} • {c.exp}</p>
+              <p className="truncate text-[10.5px] font-semibold text-zinc-800 dark:text-zinc-100">{(c.firstName ? `${c.firstName} ${c.lastName}` : c.name)}</p>
+              <p className="truncate text-[9px] text-zinc-400">{(c.jobRole || c.role)} • {(c.experience ? `${c.experience} Yrs` : c.exp)}</p>
             </div>
-            <span className={`shrink-0 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${CANDIDATE_STAGE_STYLE[c.stage] || ''}`}>{c.stage}</span>
+            <span className={`shrink-0 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${CANDIDATE_STAGE_STYLE[(c.status || c.stage)] || ''}`}>{(c.status || c.stage)}</span>
           </div>
-        ))}
+        )) : (
+          <div className="flex h-[100px] items-center justify-center text-[10.5px] text-zinc-400 italic">No candidates available</div>
+        )}
       </div>
     </Card>
   );
 }
 
-function UpcomingJoining() {
+function UpcomingJoining({ joinings = [] }: { joinings?: any[] }) {
   return (
-    <Card title="Upcoming Joining" action={<ViewAllLink href="/dashboard/hiring/joining-confirmation" />}>
+    <Card className="min-h-[180px]" title="Upcoming Joining" action={<ViewAllLink href="/dashboard/hiring/joining-confirmation" />}>
       <div className="space-y-2">
-        {UPCOMING_JOINING.map((j) => (
-          <div key={j.name} className="flex items-center gap-2">
-            <Avatar name={j.name} />
+        {joinings.length > 0 ? joinings.map((j) => (
+          <div key={(j.firstName ? `${j.firstName} ${j.lastName}` : j.name)} className="flex items-center gap-2">
+            <Avatar name={(j.firstName ? `${j.firstName} ${j.lastName}` : j.name)} />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[10.5px] font-semibold text-zinc-800 dark:text-zinc-100">{j.name}</p>
-              <p className="truncate text-[9px] text-zinc-400">{j.role}</p>
+              <p className="truncate text-[10.5px] font-semibold text-zinc-800 dark:text-zinc-100">{(j.firstName ? `${j.firstName} ${j.lastName}` : j.name)}</p>
+              <p className="truncate text-[9px] text-zinc-400">{(j.jobRole || j.role)}</p>
             </div>
-            <span className="shrink-0 whitespace-nowrap text-[9.5px] font-medium text-zinc-500 dark:text-zinc-400">{j.date}</span>
+            <span className="shrink-0 whitespace-nowrap text-[9.5px] font-medium text-zinc-500 dark:text-zinc-400">{j.date || 'TBD'}</span>
           </div>
-        ))}
+        )) : (
+          <div className="flex h-[100px] items-center justify-center text-[10.5px] text-zinc-400 italic">No upcoming joinings</div>
+        )}
       </div>
     </Card>
   );
 }
 
-function ActiveJobOpenings() {
+function ActiveJobOpenings({ openings = [] }: { openings?: any[] }) {
   return (
-    <Card title="Active Job Openings" action={<ViewAllLink href="/dashboard/hiring/manpower" label="View All Jobs" />}>
+    <Card className="min-h-[220px]" title="Active Job Openings" action={<ViewAllLink href="/dashboard/hiring/manpower" label="View All Jobs" />}>
       <table className="w-full border-collapse">
         <thead>
           <tr className="text-left text-[9.5px] text-zinc-400">
@@ -495,26 +513,32 @@ function ActiveJobOpenings() {
           </tr>
         </thead>
         <tbody>
-          {ACTIVE_JOB_OPENINGS.map((r) => (
-            <tr key={r.title} className="border-t border-zinc-50 dark:border-zinc-800">
-              <td className="truncate py-px pr-1 text-[10.5px] font-medium text-zinc-800 dark:text-zinc-100">{r.title}</td>
-              <td className="truncate py-px pr-1 text-[10.5px] text-zinc-600 dark:text-zinc-300">{r.dept}</td>
-              <td className="py-px pr-1 text-[10.5px] text-zinc-600 dark:text-zinc-300">{r.vacancies}</td>
-              <td className="py-px pr-1 text-[10.5px] text-zinc-600 dark:text-zinc-300">{r.applications}</td>
-              <td className="py-px pr-1 text-[10.5px] text-zinc-600 dark:text-zinc-300">{r.interviews}</td>
+          {openings.length > 0 ? openings.map((r) => (
+            <tr key={(r.jobTitle || r.title)} className="border-t border-zinc-50 dark:border-zinc-800">
+              <td className="truncate py-px pr-1 text-[10.5px] font-medium text-zinc-800 dark:text-zinc-100">{(r.jobTitle || r.title)}</td>
+              <td className="truncate py-px pr-1 text-[10.5px] text-zinc-600 dark:text-zinc-300">{(r.departmentId?.name || r.dept)}</td>
+              <td className="py-px pr-1 text-[10.5px] text-zinc-600 dark:text-zinc-300">{(r.numberOfPositions || r.vacancies)}</td>
+              <td className="py-px pr-1 text-[10.5px] text-zinc-600 dark:text-zinc-300">{(r.applications || 0)}</td>
+              <td className="py-px pr-1 text-[10.5px] text-zinc-600 dark:text-zinc-300">{(r.interviews || 0)}</td>
               <td className="py-px pr-1">
                 <span className={`inline-block whitespace-nowrap rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${JOB_STATUS_STYLE[r.status] || ''}`}>{r.status}</span>
               </td>
-              <td className="py-px text-[10px] text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{r.postedOn}</td>
+              <td className="py-px text-[10px] text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{(r.createdAt ? new Date(r.createdAt).toLocaleDateString() : r.postedOn)}</td>
             </tr>
-          ))}
+          )) : (
+            <tr>
+              <td colSpan={7} className="py-12 text-[10.5px] text-center text-zinc-400 italic border-t border-zinc-50 dark:border-zinc-800">
+                No active job openings
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </Card>
   );
 }
 
-function SourcePerformance() {
+function SourcePerformance({ performance = [] }: { performance?: any[] }) {
   return (
     <Card title="Recruitment Source Performance" action={<ViewAllLink href="/dashboard/hiring/candidates" label="View Report" />}>
       <table className="w-full border-collapse">
@@ -527,7 +551,7 @@ function SourcePerformance() {
           </tr>
         </thead>
         <tbody>
-          {SOURCE_PERFORMANCE.map((s) => (
+          {performance.length > 0 ? performance.map((s) => (
             <tr key={s.source} className="border-t border-zinc-50 dark:border-zinc-800">
               <td className="truncate py-0.5 pr-1 text-[10.5px] font-medium text-zinc-800 dark:text-zinc-100">{s.source}</td>
               <td className="py-0.5 pr-1 text-[10.5px] text-zinc-600 dark:text-zinc-300">{s.candidates}</td>
@@ -544,7 +568,13 @@ function SourcePerformance() {
                 </div>
               </td>
             </tr>
-          ))}
+          )) : (
+            <tr>
+              <td colSpan={4} className="py-12 text-[10.5px] text-center text-zinc-400 italic border-t border-zinc-50 dark:border-zinc-800">
+                No data available
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </Card>
@@ -556,35 +586,70 @@ function SourcePerformance() {
 // ─────────────────────────────────────────────────────────────────────────
 
 export default function RecruiterDashboard() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['hrDashboardStats'],
+    queryFn: async () => {
+      const res = await api.get('/hiring/dashboard-stats');
+      return res.data.data;
+    }
+  });
+
+  const dynamicKPIS = data ? [
+    { ...KPIS[0], value: data.kpis.openPositions.toString() },
+    { ...KPIS[1], value: data.kpis.activeCandidates.toString() },
+    { ...KPIS[2], value: data.kpis.interviewsScheduled.toString() },
+    { ...KPIS[3], value: data.kpis.offersReleased.toString() },
+    { ...KPIS[4], value: data.kpis.positionsFilled.toString() },
+    { ...KPIS[5] }
+  ] : KPIS.map(k => ({ ...k, value: '0', trend: '-' }));
+
+  const dynamicPipeline = data ? [
+    { ...PIPELINE_STAGES[0], value: data.pipeline.applications },
+    { ...PIPELINE_STAGES[1], value: data.pipeline.shortlisted },
+    { ...PIPELINE_STAGES[2], value: data.pipeline.screening },
+    { ...PIPELINE_STAGES[3], value: data.pipeline.interviewing },
+    { ...PIPELINE_STAGES[4], value: data.pipeline.offered },
+    { ...PIPELINE_STAGES[5], value: data.pipeline.offered },
+    { ...PIPELINE_STAGES[6], value: data.pipeline.joined },
+  ] : PIPELINE_STAGES.map(p => ({ ...p, value: 0 }));
+
+  const todaysInterviews = data?.todaysInterviews || [];
+  const hotCandidates = data?.hotCandidates || [];
+  const upcomingJoining = data?.upcomingJoining || [];
+  const activeJobOpenings = data?.activeJobOpenings || [];
+  const hiringOverview = data?.hiringOverview || [];
+  const sourcePerformance = data?.sourcePerformance || [];
+  const aiInsights = data?.aiInsights || [];
+
   return (
-    <div className="w-full max-w-[1600px] px-2 py-1 mx-auto space-y-2 font-sans text-zinc-900 min-h-screen">
+    <div className="w-full px-2 py-1 mx-auto space-y-2 font-sans text-zinc-900 min-h-screen">
       <div className="mx-auto max-w-[1500px] space-y-2">
         <Header />
-        <StatsStrip />
+        <StatsStrip kpiData={dynamicKPIS} />
 
         <div className="grid grid-cols-1 gap-2 lg:grid-cols-[3fr_1fr]">
           <div className="space-y-2">
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-[3fr_2fr]">
-              <RecruitmentPipeline />
-              <HiringOverview />
+              <RecruitmentPipeline pipelineData={dynamicPipeline} />
+              <HiringOverview overview={hiringOverview} />
             </div>
 
             <div className="grid grid-cols-1 gap-2 lg:grid-cols-[2fr_1fr_1fr]">
-              <TodaysInterviews />
-              <HotCandidates />
-              <UpcomingJoining />
+              <TodaysInterviews interviews={todaysInterviews} />
+              <HotCandidates candidates={hotCandidates} />
+              <UpcomingJoining joinings={upcomingJoining} />
             </div>
 
             <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
-              <ActiveJobOpenings />
-              <SourcePerformance />
+              <ActiveJobOpenings openings={activeJobOpenings} />
+              <SourcePerformance performance={sourcePerformance} />
             </div>
           </div>
 
           <div className="space-y-2">
             <ActionCenter />
             <QuickLinks />
-            <AIInsights />
+            <AIInsights insights={aiInsights} />
             <PendingApprovals />
           </div>
         </div>

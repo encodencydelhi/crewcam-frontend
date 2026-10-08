@@ -249,7 +249,7 @@ export default function InterviewProcessPage() {
             <button className="flex items-center justify-center h-8 px-3 rounded-md text-[11px] font-semibold text-zinc-700 border border-zinc-200 bg-white hover:bg-zinc-50 shadow-sm transition-colors">
               Save as Draft
             </button>
-            <button type="button" onClick={() => window.open('/dashboard/offers', "_blank")} className="flex items-center justify-center h-8 px-4 rounded-md text-[11px] font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-colors">
+            <button type="button" onClick={() => router.push(`/dashboard/hiring/candidates/new/create/round-2/${candidateId}`)} className="flex items-center justify-center h-8 px-4 rounded-md text-[11px] font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-colors">
               Start Interview &rarr;
             </button>
           </div>
